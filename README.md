@@ -1,6 +1,31 @@
 # Excel-PPT Mapper (ExcelPPTSliderMapper)
 
-A powerful Python tool for automatically mapping Excel data to PowerPoint templates, supporting PTML (PPT Template Markup Language) markup language.
+<div align="center">
+
+![Excel-PPT Mapper Banner](https://raw.githubusercontent.com/LiyYanHao/ExcelPPTSliderMapper/main/docs/images/banner.png)
+
+[![GitHub stars](https://img.shields.io/github/stars/LiyYanHao/ExcelPPTSliderMapper)](https://github.com/LiyYanHao/ExcelPPTSliderMapper/stargazers)
+[![GitHub license](https://img.shields.io/github/license/LiyYanHao/ExcelPPTSliderMapper)](https://github.com/LiyYanHao/ExcelPPTSliderMapper/blob/main/LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/LiyYanHao/ExcelPPTSliderMapper/pulls)
+
+[简体中文](./README_zh.md) | English
+
+</div>
+
+🚀 A powerful Python automation tool that revolutionizes the way you create PowerPoint presentations from Excel data. Perfect for business reports, data presentations, and automated document generation.
+
+## ✨ Why Choose Excel-PPT Mapper?
+
+- 🎯 **Save Hours of Work**: Automate the tedious process of copying data from Excel to PowerPoint
+- 🔄 **Real-time Updates**: Change your Excel data, and your PPT updates automatically
+- 🎨 **Preserve Design**: Keep your PowerPoint template design while updating only the data
+- 📊 **Rich Content Support**: Handle text, tables, charts, and images with ease
+- 🛠 **User-Friendly**: Simple template markup language that anyone can learn in minutes
+
+## 🎥 Demo
+
+![Demo GIF](https://raw.githubusercontent.com/LiyYanHao/ExcelPPTSliderMapper/main/docs/images/demo.gif)
 
 ## 🌟 Features
 

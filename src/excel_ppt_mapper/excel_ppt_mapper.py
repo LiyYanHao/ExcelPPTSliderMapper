@@ -13,12 +13,12 @@ from openpyxl import load_workbook
 
 
 def check_file_in_use(file_path: str) -> bool:
-    """检查文件是否被占用"""
+    """Check if a file is being used"""
     if not os.path.exists(file_path):
         return False
     
     try:
-        # 尝试以独占方式打开文件
+        # Try to open the file in exclusive mode
         with open(file_path, 'r+b') as f:
             pass
         return False
@@ -26,29 +26,29 @@ def check_file_in_use(file_path: str) -> bool:
         return True
 
 def close_powerpoint_processes():
-    """关闭所有PowerPoint进程"""
-    print("🔄 检查并关闭PowerPoint进程...")
+    """Close all PowerPoint processes"""
+    print("🔄 Checking and closing PowerPoint processes...")
     closed_count = 0
     
     for proc in psutil.process_iter(['pid', 'name']):
         try:
             if proc.info['name'].lower() in ['powerpnt.exe', 'powerpoint.exe']:
-                print(f"   发现PowerPoint进程 PID: {proc.info['pid']}")
+                print(f"   Found PowerPoint process PID: {proc.info['pid']}")
                 proc.terminate()
                 proc.wait(timeout=5)
                 closed_count += 1
-                print(f"   已关闭PowerPoint进程 PID: {proc.info['pid']}")
+                print(f"   Closed PowerPoint process PID: {proc.info['pid']}")
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
             pass
     
     if closed_count > 0:
-        print(f"✅ 已关闭 {closed_count} 个PowerPoint进程")
-        time.sleep(2)  # 等待进程完全关闭
+        print(f"✅ Closed {closed_count} PowerPoint processes")
+        time.sleep(2)  # Wait for processes to fully close
     else:
-        print("ℹ️  未发现需要关闭的PowerPoint进程")
+        print("ℹ️  No PowerPoint processes found to close")
 
 def generate_unique_filename(base_path: str) -> str:
-    """生成唯一的文件名"""
+    """Generate a unique filename"""
     if not os.path.exists(base_path):
         return base_path
     
@@ -64,107 +64,107 @@ def generate_unique_filename(base_path: str) -> str:
         counter += 1
 
 def safe_save_presentation(pres, output_path: str, max_retries: int = 3) -> bool:
-    """安全保存演示文稿，带重试机制"""
+    """Safely save presentation with retry mechanism"""
     original_path = output_path
     
     for attempt in range(max_retries):
         try:
-            print(f"💾 尝试保存文件 (第 {attempt + 1}/{max_retries} 次): {output_path}")
+            print(f"💾 Attempting to save file (Attempt {attempt + 1}/{max_retries}): {output_path}")
             
-            # 检查文件是否被占用
+            # Check if file is in use
             if check_file_in_use(output_path):
-                print(f"⚠️  文件被占用: {output_path}")
+                print(f"⚠️  File is in use: {output_path}")
                 
                 if attempt == 0:
-                    # 第一次尝试：关闭PowerPoint进程
+                    # First attempt: close PowerPoint processes
                     close_powerpoint_processes()
                     time.sleep(1)
                     continue
                 else:
-                    # 后续尝试：使用新文件名
+                    # Subsequent attempts: use new filename
                     output_path = generate_unique_filename(original_path)
-                    print(f"🔄 使用新文件名: {output_path}")
+                    print(f"🔄 Using new filename: {output_path}")
             
-            # 尝试保存
+            # Try to save
             pres.SaveAs(output_path)
-            print(f"✅ 文件保存成功: {output_path}")
+            print(f"✅ File saved successfully: {output_path}")
             return True
             
         except Exception as e:
             error_msg = str(e)
-            print(f"❌ 保存失败 (第 {attempt + 1} 次): {error_msg}")
+            print(f"❌ Save failed (Attempt {attempt + 1}): {error_msg}")
             
-            if "正在使用中" in error_msg or "being used" in error_msg.lower():
+            if "being used" in error_msg.lower():
                 if attempt < max_retries - 1:
-                    # 文件占用错误，尝试解决
-                    print("🔄 检测到文件占用，尝试解决...")
+                    # File in use error, try to resolve
+                    print("🔄 File in use detected, attempting to resolve...")
                     close_powerpoint_processes()
                     
-                    # 生成新文件名
+                    # Generate new filename
                     output_path = generate_unique_filename(original_path)
-                    print(f"🔄 使用新文件名: {output_path}")
+                    print(f"🔄 Using new filename: {output_path}")
                     time.sleep(2)
                     continue
             else:
-                # 其他错误，直接重试
+                # Other errors, just retry
                 if attempt < max_retries - 1:
-                    print(f"⏳ 等待 {(attempt + 1) * 2} 秒后重试...")
+                    print(f"⏳ Waiting {(attempt + 1) * 2} seconds before retry...")
                     time.sleep((attempt + 1) * 2)
                     continue
     
-    print(f"💥 保存失败，已尝试 {max_retries} 次")
+    print(f"💥 Save failed after {max_retries} attempts")
     return False
 
 
 class PTMLParser:
-    """PPT Template Markup Language (PTML) 解析器"""
+    """PPT Template Markup Language (PTML) Parser"""
     
-    # 标记类型定义 - 使用 ${} 格式，只保留直接替换的标记
+    # Marker type definitions - using ${} format, only keep direct replacement markers
     MARKERS = {
-        'NO_CONVERT': r'\$\{([A-Za-z][A-Za-z0-9_]*)\}',  # ${Value} - 不进行任何转换
+        'NO_CONVERT': r'\$\{([A-Za-z][A-Za-z0-9_]*)\}',  # ${Value} - No conversion
     }
 
 def print_slide_content(slide, page_num: int):
-    """打印幻灯片的所有内容"""
+    """Print all content of a slide"""
     print(f"\n{'='*80}")
-    print(f"第 {page_num} 页原始内容:")
+    print(f"Page {page_num} Original Content:")
     print(f"{'='*80}")
     
     if slide.Shapes.Count == 0:
-        print("  该页面没有任何形状内容")
+        print("  This page has no shapes")
         return
     
     for shape_idx, shape in enumerate(slide.Shapes, 1):
-        print(f"\n📍 形状 {shape_idx}:")
-        print(f"   类型: {shape.Type} ({get_shape_type_name(shape.Type)})")
-        print(f"   位置: Left={shape.Left:.1f}, Top={shape.Top:.1f}")
-        print(f"   大小: Width={shape.Width:.1f}, Height={shape.Height:.1f}")
+        print(f"\n📍 Shape {shape_idx}:")
+        print(f"   Type: {shape.Type} ({get_shape_type_name(shape.Type)})")
+        print(f"   Position: Left={shape.Left:.1f}, Top={shape.Top:.1f}")
+        print(f"   Size: Width={shape.Width:.1f}, Height={shape.Height:.1f}")
         
-        # 处理文本框内容 - 改进版本
+        # Handle text frame content - improved version
         if shape.HasTextFrame:
             text_frame = shape.TextFrame
             if text_frame.HasText:
-                # 获取原始文本内容，不做任何处理
+                # Get original text content without processing
                 text_content = text_frame.TextRange.Text
                 
-                # 显示完整的原始文本（不截断）
-                print(f"   📝 文本内容 (长度: {len(text_content)}):")
-                print(f"      原始文本: {repr(text_content)}")  # 使用repr显示所有字符
-                print(f"      显示文本: 「{text_content}」")  # 正常显示
+                # Show complete original text (no truncation)
+                print(f"   📝 Text Content (Length: {len(text_content)}):")
+                print(f"      Original Text: {repr(text_content)}")
+                print(f"      Display Text: 「{text_content}」")
                 
-                # 如果文本很长，分行显示
+                # If text is long, show by lines
                 if len(text_content) > 100:
                     lines = text_content.split('\n')
-                    print(f"      分行显示 ({len(lines)} 行):")
+                    print(f"      Line Display ({len(lines)} lines):")
                     for i, line in enumerate(lines, 1):
-                        if line.strip():  # 只显示非空行
-                            print(f"        第{i}行: 「{line}」")
+                        if line.strip():  # Only show non-empty lines
+                            print(f"        Line {i}: 「{line}」")
                 
-                # 详细的标记检测
-                print(f"   🔍 标记检测结果:")
+                # Detailed marker detection
+                print(f"   🔍 Marker Detection Results:")
                 all_markers = []
                 
-                # 逐个检测每种标记类型
+                # Check each marker type
                 import re
                 for marker_type, pattern in PTMLParser.MARKERS.items():
                     try:
@@ -173,28 +173,28 @@ def print_slide_content(slide, page_num: int):
                             print(f"      ✅ {marker_type}: {matches}")
                             all_markers.extend([(marker_type, match) for match in matches])
                         else:
-                            print(f"      ❌ {marker_type}: 未找到")
+                            print(f"      ❌ {marker_type}: Not Found")
                     except Exception as e:
-                        print(f"      ⚠️  {marker_type}: 检测出错 - {e}")
+                        print(f"      ⚠️  {marker_type}: Detection Error - {e}")
                 
                 if not all_markers:
-                    print(f"      ℹ️  未发现任何PTML标记")
+                    print(f"      ℹ️  No PTML markers found")
                 
-                # 额外检查：查找所有可能的$标记
+                # Additional check: find all possible $ markers
                 simple_dollar_matches = re.findall(r'\$[^}]*\}?', text_content)
                 if simple_dollar_matches:
-                    print(f"   💡 发现的所有$标记: {simple_dollar_matches}")
+                    print(f"   💡 All $ markers found: {simple_dollar_matches}")
                     
             else:
-                print(f"   📝 文本框: 空内容")
+                print(f"   📝 Text Frame: Empty")
         
-        # 处理表格内容 - 改进版本
+        # Handle table content - improved version
         if shape.HasTable:
             table = shape.Table
-            print(f"   📊 表格: {table.Rows.Count} 行 × {table.Columns.Count} 列")
+            print(f"   📊 Table: {table.Rows.Count} rows × {table.Columns.Count} columns")
             
-            # 打印完整的表格内容，不截断
-            print(f"      完整表格内容:")
+            # Print complete table content, no truncation
+            print(f"      Complete Table Content:")
             for row in range(1, table.Rows.Count + 1):
                 row_data = []
                 for col in range(1, table.Columns.Count + 1):
@@ -202,10 +202,10 @@ def print_slide_content(slide, page_num: int):
                         cell = table.Cell(row, col)
                         if cell.Shape.HasTextFrame and cell.Shape.TextFrame.HasText:
                             cell_text = cell.Shape.TextFrame.TextRange.Text
-                            # 不截断，显示完整内容，并检查标记
+                            # No truncation, show complete content and check markers
                             row_data.append(f"「{cell_text}」")
                             
-                            # 检查单元格中的标记
+                            # Check cell markers
                             cell_markers = []
                             for marker_type, pattern in PTMLParser.MARKERS.items():
                                 matches = re.findall(pattern, cell_text)
@@ -213,33 +213,33 @@ def print_slide_content(slide, page_num: int):
                                     cell_markers.extend([(marker_type, match) for match in matches])
                             
                             if cell_markers:
-                                print(f"        单元格[{row},{col}]原文: {repr(cell_text)}")
-                                print(f"        单元格[{row},{col}]标记: {cell_markers}")
+                                print(f"        Cell[{row},{col}] Original: {repr(cell_text)}")
+                                print(f"        Cell[{row},{col}] Markers: {cell_markers}")
                                 
                         else:
-                            row_data.append("「空」")
+                            row_data.append("「Empty」")
                     except Exception as e:
-                        row_data.append(f"「错误:{e}」")
+                        row_data.append(f"「Error:{e}」")
                 
                 if row == 1:
-                    print(f"        表头: {' | '.join(row_data)}")
+                    print(f"        Header: {' | '.join(row_data)}")
                 else:
-                    print(f"        第{row}行: {' | '.join(row_data)}")
+                    print(f"        Row {row}: {' | '.join(row_data)}")
         
-        # 处理图表内容 - 改进版本
+        # Handle chart content - improved version
         if shape.HasChart:
             chart = shape.Chart
             chart_type_name = get_chart_type_name(chart.ChartType)
-            print(f"   📈 图表: {chart_type_name} (类型码: {chart.ChartType})")
+            print(f"   📈 Chart: {chart_type_name} (Type Code: {chart.ChartType})")
             
-            # 获取图表标题
+            # Get chart title
             try:
                 if chart.HasTitle:
                     title_text = chart.ChartTitle.Text
-                    print(f"      标题原文: {repr(title_text)}")
-                    print(f"      标题显示: 「{title_text}」")
+                    print(f"      Title Original: {repr(title_text)}")
+                    print(f"      Title Display: 「{title_text}」")
                     
-                    # 检查标题中的标记
+                    # Check title markers
                     title_markers = []
                     for marker_type, pattern in PTMLParser.MARKERS.items():
                         matches = re.findall(pattern, title_text)
@@ -247,25 +247,25 @@ def print_slide_content(slide, page_num: int):
                             title_markers.extend([(marker_type, match) for match in matches])
                     
                     if title_markers:
-                        print(f"      标题标记: {title_markers}")
+                        print(f"      Title Markers: {title_markers}")
                 else:
-                    print(f"      标题: 无")
+                    print(f"      Title: None")
             except Exception as e:
-                print(f"      标题: 读取出错 - {e}")
+                print(f"      Title: Read Error - {e}")
             
-            # 获取数据系列信息
+            # Get series information
             try:
                 series_count = chart.SeriesCollection.Count
-                print(f"      数据系列数量: {series_count}")
+                print(f"      Number of Series: {series_count}")
                 
-                for i in range(1, series_count + 1):  # 显示所有系列
+                for i in range(1, series_count + 1):  # Show all series
                     try:
                         series = chart.SeriesCollection(i)
                         series_name = str(series.Name)
-                        print(f"      系列 {i} 原文: {repr(series_name)}")
-                        print(f"      系列 {i} 显示: 「{series_name}」")
+                        print(f"      Series {i} Original: {repr(series_name)}")
+                        print(f"      Series {i} Display: 「{series_name}」")
                         
-                        # 检查系列名中的标记
+                        # Check series name markers
                         series_markers = []
                         for marker_type, pattern in PTMLParser.MARKERS.items():
                             matches = re.findall(pattern, series_name)
@@ -273,29 +273,29 @@ def print_slide_content(slide, page_num: int):
                                 series_markers.extend([(marker_type, match) for match in matches])
                         
                         if series_markers:
-                            print(f"      系列 {i} 标记: {series_markers}")
+                            print(f"      Series {i} Markers: {series_markers}")
                             
                     except Exception as e:
-                        print(f"      系列 {i}: 读取出错 - {e}")
+                        print(f"      Series {i}: Read Error - {e}")
                         
             except Exception as e:
-                print(f"      数据系列: 读取出错 - {e}")
+                print(f"      Series Data: Read Error - {e}")
         
-        # 处理图片内容 - 改进版本
-        if shape.Type == 13:  # 图片类型
-            print(f"   🖼️  图片:")
+        # Handle image content - improved version
+        if shape.Type == 13:  # Image type
+            print(f"   🖼️  Image:")
             try:
                 if hasattr(shape, 'Name'):
                     shape_name = shape.Name
-                    print(f"      名称: 「{shape_name}」")
+                    print(f"      Name: 「{shape_name}」")
                     
                 if hasattr(shape, 'AlternativeText'):
                     alt_text = shape.AlternativeText
                     if alt_text:
-                        print(f"      替代文本原文: {repr(alt_text)}")
-                        print(f"      替代文本显示: 「{alt_text}」")
+                        print(f"      Alt Text Original: {repr(alt_text)}")
+                        print(f"      Alt Text Display: 「{alt_text}」")
                         
-                        # 检查替代文本中的标记
+                        # Check alt text markers
                         alt_markers = []
                         for marker_type, pattern in PTMLParser.MARKERS.items():
                             matches = re.findall(pattern, alt_text)
@@ -303,28 +303,28 @@ def print_slide_content(slide, page_num: int):
                                 alt_markers.extend([(marker_type, match) for match in matches])
                         
                         if alt_markers:
-                            print(f"      替代文本标记: {alt_markers}")
+                            print(f"      Alt Text Markers: {alt_markers}")
                     else:
-                        print(f"      替代文本: 无")
+                        print(f"      Alt Text: None")
                         
             except Exception as e:
-                print(f"      图片信息: 读取出错 - {e}")
+                print(f"      Image Info: Read Error - {e}")
         
-        # 处理其他形状 - 改进版本
+        # Handle other shapes - improved version
         if not shape.HasTextFrame and not shape.HasTable and not shape.HasChart and shape.Type != 13:
             try:
-                shape_name = getattr(shape, 'Name', '未知')
-                print(f"   🔹 其他形状: 「{shape_name}」")
+                shape_name = getattr(shape, 'Name', 'Unknown')
+                print(f"   🔹 Other Shape: 「{shape_name}」")
                 
-                # 尝试获取其他可能的文本属性
+                # Try to get other possible text attributes
                 if hasattr(shape, 'TextFrame2'):
                     try:
                         if shape.TextFrame2.HasText:
                             text_content = shape.TextFrame2.TextRange.Text
-                            print(f"      TextFrame2内容原文: {repr(text_content)}")
-                            print(f"      TextFrame2内容显示: 「{text_content}」")
+                            print(f"      TextFrame2 Content Original: {repr(text_content)}")
+                            print(f"      TextFrame2 Content Display: 「{text_content}」")
                             
-                            # 检查TextFrame2中的标记
+                            # Check TextFrame2 markers
                             tf2_markers = []
                             for marker_type, pattern in PTMLParser.MARKERS.items():
                                 matches = re.findall(pattern, text_content)
@@ -332,227 +332,227 @@ def print_slide_content(slide, page_num: int):
                                     tf2_markers.extend([(marker_type, match) for match in matches])
                             
                             if tf2_markers:
-                                print(f"      TextFrame2标记: {tf2_markers}")
+                                print(f"      TextFrame2 Markers: {tf2_markers}")
                     except:
                         pass
                         
             except Exception as e:
-                print(f"   🔹 其他形状: 信息读取出错 - {e}")
+                print(f"   🔹 Other Shape: Info Read Error - {e}")
     
     print(f"\n{'='*80}")
-    print(f"第 {page_num} 页内容扫描完成 - 共 {slide.Shapes.Count} 个形状")
+    print(f"Page {page_num} Content Scan Complete - Total {slide.Shapes.Count} Shapes")
     print(f"{'='*80}")
 
 def get_shape_type_name(shape_type: int) -> str:
-    """获取形状类型的中文名称"""
+    """Get shape type name"""
     shape_types = {
-        1: "自选图形",
-        2: "标注",
-        3: "图表",
-        4: "注释",
-        5: "自由曲线",
-        6: "组合",
-        7: "嵌入式OLE对象",
-        8: "窗体控件",
-        9: "线条",
-        10: "链接式OLE对象",
-        11: "链接式图片",
-        12: "媒体",
-        13: "图片",
-        14: "占位符",
-        15: "多边形",
-        16: "多段线",
-        17: "文本框",
-        18: "表格",
-        19: "文本效果"
+        1: "AutoShape",
+        2: "Callout",
+        3: "Chart",
+        4: "Comment",
+        5: "Freeform",
+        6: "Group",
+        7: "Embedded OLE Object",
+        8: "Form Control",
+        9: "Line",
+        10: "Linked OLE Object",
+        11: "Linked Picture",
+        12: "Media",
+        13: "Picture",
+        14: "Placeholder",
+        15: "Polygon",
+        16: "Polyline",
+        17: "Text Box",
+        18: "Table",
+        19: "Text Effect"
     }
-    return shape_types.get(shape_type, f"未知类型({shape_type})")
+    return shape_types.get(shape_type, f"Unknown Type({shape_type})")
 
 def get_chart_type_name(chart_type: int) -> str:
-    """获取图表类型的中文名称"""
+    """Get chart type name"""
     chart_types = {
-        4: "折线图",
-        5: "饼图",
-        51: "柱状图",
-        52: "堆积柱状图",
-        53: "百分比堆积柱状图",
-        57: "条形图",
-        65: "面积图",
-        68: "散点图",
-        69: "气泡图",
-        70: "圆环图",
-        72: "雷达图"
+        4: "Line Chart",
+        5: "Pie Chart",
+        51: "Column Chart",
+        52: "Stacked Column Chart",
+        53: "100% Stacked Column Chart",
+        57: "Bar Chart",
+        65: "Area Chart",
+        68: "Scatter Chart",
+        69: "Bubble Chart",
+        70: "Doughnut Chart",
+        72: "Radar Chart"
     }
-    return chart_types.get(chart_type, f"未知图表({chart_type})")
+    return chart_types.get(chart_type, f"Unknown Chart({chart_type})")
 
 def process_ptml_template(ppt_path: str, template_data: Dict[str, Any], output_path: Optional[str] = None, page_numbers: Optional[List[int]] = None) -> bool:
-    """处理PPT模板，替换其中的标记"""
+    """Process PPT template, replace markers"""
     import win32com.client
     import os
     import time
     
-    # 确保输入文件存在
+    # Ensure input file exists
     if not os.path.exists(ppt_path):
-        print(f"❌ 输入文件不存在: {ppt_path}")
+        print(f"❌ Input file does not exist: {ppt_path}")
         return False
     
-    # 如果没有指定输出路径，使用输入路径
+    # If output path is not specified, use input path
     if output_path is None:
         output_path = ppt_path
     
-    # 确保输出目录存在
+    # Ensure output directory exists
     output_dir = os.path.dirname(output_path)
     if not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
-            print(f"✅ 创建输出目录: {output_dir}")
+            print(f"✅ Created output directory: {output_dir}")
         except Exception as e:
-            print(f"❌ 创建输出目录失败: {e}")
+            print(f"❌ Failed to create output directory: {e}")
             return False
     
-    print(f"🔄 开始处理PPT模板: {ppt_path}")
+    print(f"🔄 Starting to process PPT template: {ppt_path}")
     
     try:
-        # 创建PowerPoint应用程序实例
+        # Create PowerPoint application instance
         ppt = win32com.client.Dispatch("PowerPoint.Application")
-        ppt.Visible = True  # 设置为可见，方便调试
+        ppt.Visible = True  # Set to visible for debugging
         
         try:
-            # 打开源文件
-            print(f"📂 正在打开文件: {ppt_path}")
+            # Open source file
+            print(f"📂 Opening file: {ppt_path}")
             source_pres = ppt.Presentations.Open(ppt_path)
-            print(f"✅ 文件打开成功")
+            print(f"✅ File opened successfully")
             
-            # 处理所有幻灯片
+            # Process all slides
             total_slides = source_pres.Slides.Count
-            print(f"📊 总页数: {total_slides}")
+            print(f"📊 Total pages: {total_slides}")
             
-            # 如果指定了页码，只处理指定页码
+            # If page numbers are specified, process only those pages
             slides_to_process = page_numbers if page_numbers else range(1, total_slides + 1)
             
             for page_num in slides_to_process:
                 if page_num > total_slides:
-                    print(f"⚠️ 跳过无效页码: {page_num} (超出总页数)")
+                    print(f"⚠️ Skipping invalid page number: {page_num} (exceeds total pages)")
                     continue
                 
-                print(f"\n处理第 {page_num} 页:")
+                print(f"\nProcessing page {page_num}:")
                 slide = source_pres.Slides(page_num)
                 
-                # 打印幻灯片内容（调试用）
+                # Print slide content (for debugging)
                 print_slide_content(slide, page_num)
                 
-                # 处理幻灯片中的所有形状
+                # Process all shapes in the slide
                 for shape_idx, shape in enumerate(slide.Shapes, 1):
-                    print(f"\n处理形状 {shape_idx}:")
+                    print(f"\nProcessing shape {shape_idx}:")
                     
-                    # 根据形状类型调用相应的处理函数
-                    if shape.Type == 6:  # 组合形状
+                    # Call corresponding processing function based on shape type
+                    if shape.Type == 6:  # Group shape
                         process_group_shape(shape, template_data)
                     elif shape.HasTable:
                         process_table_shape(shape, template_data)
                     elif shape.HasChart:
                         process_chart_shape(shape, template_data)
-                    elif shape.Type == 13:  # 图片
+                    elif shape.Type == 13:  # Image
                         process_image_shape(shape, template_data)
                     else:
                         process_text_shape(shape, template_data)
             
-            # 保存文件
-            print(f"\n💾 正在保存文件: {output_path}")
+            # Save file
+            print(f"\n💾 Saving file: {output_path}")
             if safe_save_presentation(source_pres, output_path):
-                print(f"✅ 文件保存成功: {output_path}")
+                print(f"✅ File saved successfully: {output_path}")
                 return True
             else:
-                print(f"❌ 文件保存失败")
+                print(f"❌ File save failed")
                 return False
                 
         finally:
             try:
-                # 关闭演示文稿
+                # Close presentation
                 source_pres.Close()
-                print("✅ 已关闭演示文稿")
+                print("✅ Closed presentation")
             except:
                 pass
             
             try:
-                # 退出PowerPoint
+                # Exit PowerPoint
                 ppt.Quit()
-                print("✅ 已退出PowerPoint")
+                print("✅ Exited PowerPoint")
             except:
                 pass
             
-            # 确保所有PowerPoint进程都被关闭
-            print("🔄 检查并关闭PowerPoint进程...")
+            # Ensure all PowerPoint processes are closed
+            print("🔄 Checking and closing PowerPoint processes...")
             close_powerpoint_processes()
             
     except Exception as e:
-        print(f"创建PowerPoint应用程序实例时出错: {e}")
-        print(f"详细错误信息: {traceback.format_exc()}")
+        print(f"Error creating PowerPoint application instance: {e}")
+        print(f"Detailed error information: {traceback.format_exc()}")
         return False
     
     return True
 
 def process_group_shape(shape, template_data: Dict[str, Any]):
-    """处理组合形状中的标记（递归处理每个子形状）"""
-    if shape.Type != 6:  # 不是组合形状
+    """Process markers in group shape (recursive processing of each sub-shape)"""
+    if shape.Type != 6:  # Not a group shape
         return
     
-    print(f"  📦 处理组合形状: {shape.Name}")
+    print(f"  📦 Processing group shape: {shape.Name}")
     
     try:
-        # 先检查组合形状本身是否有文本
+        # First check if the group shape itself has text
         if shape.HasTextFrame:
-            print(f"    📝 组合形状本身有文本框")
+            print(f"    📝 Group shape itself has text frame")
             process_text_shape(shape, template_data)
         
-        # 递归处理组合中的每个子形状
+        # Recursively process each sub-shape in the group
         for sub_shape_idx, sub_shape in enumerate(shape.GroupItems, 1):
-            print(f"    🔧 处理子形状 {sub_shape_idx}: {get_shape_type_name(sub_shape.Type)}")
+            print(f"    🔧 Processing sub-shape {sub_shape_idx}: {get_shape_type_name(sub_shape.Type)}")
             
-            # 递归处理嵌套的组合形状
-            if sub_shape.Type == 6:  # 嵌套的组合形状
+            # Recursively process nested group shapes
+            if sub_shape.Type == 6:  # Nested group shape
                 process_group_shape(sub_shape, template_data)
             
-            # 处理子形状的文本
+            # Process text of sub-shape
             if sub_shape.HasTextFrame:
-                print(f"      📝 子形状有文本框，开始处理...")
+                print(f"      📝 Sub-shape has text frame, processing...")
                 process_text_shape(sub_shape, template_data)
             
-            # 处理子形状的表格
+            # Process table of sub-shape
             if sub_shape.HasTable:
                 process_table_shape(sub_shape, template_data)
             
-            # 处理子形状的图表
+            # Process chart of sub-shape
             if sub_shape.HasChart:
                 process_chart_shape(sub_shape, template_data)
             
-            # 处理子形状的图片
-            if sub_shape.Type == 13:  # 图片形状
+            # Process image of sub-shape
+            if sub_shape.Type == 13:  # Image shape
                 process_image_shape(sub_shape, template_data)
                 
     except Exception as e:
-        print(f"    ⚠️  处理组合形状时出错: {e}")
+        print(f"    ⚠️   Error processing group shape: {e}")
         import traceback
-        print(f"    详细错误: {traceback.format_exc()}")
+        print(f"    Detailed error: {traceback.format_exc()}")
 
 def get_case_insensitive_value(key: str, data_dict: Dict[str, Any], key_mapping: Dict[str, str]) -> Any:
-    """获取不区分大小写的键值"""
-    # 先尝试直接匹配
+    """Get case-insensitive key value"""
+    # First try direct match
     if key in data_dict:
         return data_dict[key]
     
-    # 如果直接匹配失败，尝试不区分大小写匹配
+    # If direct match fails, try case-insensitive match
     if key.upper() in key_mapping:
         original_key = key_mapping[key.upper()]
         if original_key in data_dict:
             return data_dict[original_key]
     
-    # 如果都没有匹配到，返回None
+    # If no match found, return None
     return None
 
 
 def process_text_shape(shape, template_data: Dict[str, Any]):
-    """处理文本形状，直接替换标记值，不进行任何转换"""
+    """Process text shape, directly replace marker value without any conversion"""
     if not shape.HasTextFrame:
         return
     
@@ -562,41 +562,41 @@ def process_text_shape(shape, template_data: Dict[str, Any]):
     
     original_text = text_frame.TextRange.Text
     modified_text = original_text
-    print(f"  🔍 处理文本: '{original_text}'")
+    print(f"  🔍 Processing text: '{original_text}'")
     
-    # 获取key映射字典
+    # Get key mapping dictionary
     key_mapping = template_data.get("_key_mapping", {})
     
-    # 处理所有标记，直接替换不进行转换
+    # Process all markers, directly replace without conversion
     no_convert_markers = re.findall(PTMLParser.MARKERS['NO_CONVERT'], modified_text)
     if no_convert_markers:
-        print(f"  发现标记: {no_convert_markers}")
+        print(f"   Found markers: {no_convert_markers}")
         for marker in no_convert_markers:
             value = get_case_insensitive_value(marker, template_data.get('TEXT', {}), key_mapping.get("TEXT", {}))
             if value is not None:
                 modified_text = modified_text.replace(f"${{{marker}}}", str(value))
-                print(f"    直接替换: ${{{marker}}} -> {value}")
+                print(f"     Direct replacement: ${{{marker}}} -> {value}")
             else:
-                print(f"    未找到匹配: ${{{marker}}}")
+                print(f"     No match found: ${{{marker}}}")
     
-    # 如果文本有变化，则更新
+    # If text has changed, update
     if modified_text != original_text:
         text_frame.TextRange.Text = modified_text
-        print(f"  ✅ 文本已更新")
+        print(f"  ✅ Text updated")
 
 def process_table_shape(shape, template_data: Dict[str, Any]):
-    """处理表格形状中的标记，直接替换不进行转换"""
+    """Process markers in table shape without any conversion"""
     if not shape.HasTable:
         return
     
     try:
         table = shape.Table
-        print(f"  处理表格: {table.Rows.Count} 行 x {table.Columns.Count} 列")
+        print(f"   Processing table: {table.Rows.Count} rows x {table.Columns.Count} columns")
         
-        # 获取key映射字典
+        # Get key mapping dictionary
         key_mapping = template_data.get("_key_mapping", {})
         
-        # 遍历表格的每个单元格
+        # Iterate through each cell in the table
         for row in range(1, table.Rows.Count + 1):
             for col in range(1, table.Columns.Count + 1):
                 try:
@@ -605,124 +605,124 @@ def process_table_shape(shape, template_data: Dict[str, Any]):
                         cell_text = cell.Shape.TextFrame.TextRange.Text
                         original_text = cell_text
                         
-                        # 处理所有标记，直接替换不进行转换
+                        # Process all markers, directly replace without conversion
                         no_convert_markers = re.findall(PTMLParser.MARKERS['NO_CONVERT'], cell_text)
                         if no_convert_markers:
-                            print(f"    发现标记: {no_convert_markers}")
+                            print(f"     Found markers: {no_convert_markers}")
                             for marker in no_convert_markers:
                                 value = get_case_insensitive_value(marker, template_data.get('TEXT', {}), key_mapping.get("TEXT", {}))
                                 if value is not None:
                                     cell_text = cell_text.replace(f"${{{marker}}}", str(value))
-                                    print(f"      直接替换: ${{{marker}}} -> {value}")
+                                    print(f"       Direct replacement: ${{{marker}}} -> {value}")
                                 else:
-                                    print(f"      未找到匹配: ${{{marker}}}")
+                                    print(f"       No match found: ${{{marker}}}")
                             
-                            # 只有在文本有变化时才更新
+                            # Only update if text has changed
                             if cell_text != original_text:
                                 cell.Shape.TextFrame.TextRange.Text = cell_text
-                                print(f"      ✅ 单元格[{row},{col}]已更新")
+                                print(f"      ✅ Cell[{row},{col}] updated")
                 except Exception as e:
-                    print(f"    处理单元格[{row},{col}]时出错: {e}")
+                    print(f"     Error processing cell[{row},{col}]: {e}")
     except Exception as e:
-        print(f"    处理表格时出错: {e}")
-        print(f"    详细错误信息: {traceback.format_exc()}")
+        print(f"     Error processing table: {e}")
+        print(f"     Detailed error information: {traceback.format_exc()}")
 
 def process_chart_shape(shape, template_data: Dict[str, Any]):
-    """处理图表形状中的标记，包括组合图表"""
+    """Process markers in chart shape, including combo charts"""
     if not shape.HasChart:
         return
     
     chart = shape.Chart
-    print(f"  处理图表: {chart.ChartType}")
+    print(f"   Processing chart: {chart.ChartType}")
     
-    # 获取key映射字典
+    # Get key mapping dictionary
     key_mapping = template_data.get("_key_mapping", {})
     
     try:
-        # 处理图表标题
+        # Process chart title
         try:
             if chart.HasTitle:
                 title_text = chart.ChartTitle.Text
                 original_text = title_text
                 
-                # 处理所有标记，直接替换不进行转换
+                # Process all markers, directly replace without conversion
                 no_convert_markers = re.findall(PTMLParser.MARKERS['NO_CONVERT'], title_text)
                 if no_convert_markers:
-                    print(f"    发现标记: {no_convert_markers}")
+                    print(f"     Found markers: {no_convert_markers}")
                     for marker in no_convert_markers:
                         value = get_case_insensitive_value(marker, template_data.get('TEXT', {}), key_mapping.get("TEXT", {}))
                         if value is not None:
                             title_text = title_text.replace(f"${{{marker}}}", str(value))
-                            print(f"      直接替换: ${{{marker}}} -> {value}")
+                            print(f"       Direct replacement: ${{{marker}}} -> {value}")
                         else:
-                            print(f"      未找到匹配: ${{{marker}}}")
+                            print(f"       No match found: ${{{marker}}}")
                     
-                    # 只有在文本有变化时才更新
+                    # Only update if text has changed
                     if title_text != original_text:
                         chart.ChartTitle.Text = title_text
-                        print(f"      ✅ 图表标题已更新")
+                        print(f"      ✅ Chart title updated")
         except Exception as e:
-            print(f"    处理图表标题时出错: {e}")
+            print(f"     Error processing chart title: {e}")
         
-        # 处理图表数据更新
+        # Process chart data update
         try:
-            # 检查是否有对应的图表数据
+            # Check if corresponding chart data exists
             chart_markers = re.findall(PTMLParser.MARKERS['NO_CONVERT'], str(shape.AlternativeText) if hasattr(shape, 'AlternativeText') else "")
             
             for marker in chart_markers:
                 chart_data = get_case_insensitive_value(marker, template_data.get('CHARTS', {}), key_mapping.get("CHARTS", {}))
                 if chart_data and isinstance(chart_data, dict):
-                    print(f"    更新图表数据: {marker}")
+                    print(f"     Updating chart data: {marker}")
                     update_chart_data(chart, chart_data)
                     
         except Exception as e:
-            print(f"    处理图表数据时出错: {e}")
+            print(f"     Error processing chart data: {e}")
             
     except Exception as e:
-        print(f"  处理图表时出错: {e}")
+        print(f"   Error processing chart: {e}")
 
 def update_chart_data(chart, chart_data: Dict[str, Any]):
-    """更新图表数据，支持组合图表"""
+    """Update chart data, support combo charts"""
     try:
         chart_type = chart_data.get("type", "column")
         categories = chart_data.get("categories", [])
         
-        print(f"    📊 更新图表类型: {chart_type}")
-        print(f"    📊 分类数量: {len(categories)}")
+        print(f"    📊 Updating chart type: {chart_type}")
+        print(f"    📊 Number of categories: {len(categories)}")
         
-        # 更新图表标题
+        # Update chart title
         if chart_data.get("title") and chart.HasTitle:
             chart.ChartTitle.Text = chart_data["title"]
-            print(f"    ✅ 图表标题已更新为: {chart_data['title']}")
+            print(f"    ✅ Chart title updated to: {chart_data['title']}")
         
-        # 处理组合图表
+        # Process combo charts
         if chart_type.lower() == "combo":
             column_series = chart_data.get("column_series", [])
             line_series = chart_data.get("line_series", [])
             
-            print(f"    📊 柱状图系列: {len(column_series)} 个")
-            print(f"    📊 折线图系列: {len(line_series)} 个")
+            print(f"    📊 Column series: {len(column_series)}")
+            print(f"    📊 Line series: {len(line_series)}")
             
-            # 更新数据表（工作表）
+            # Update data table (worksheet)
             try:
                 chart_workbook = chart.ChartData.Workbook
                 chart_worksheet = chart_workbook.Worksheets(1)
                 
-                # 清空现有数据
+                # Clear existing data
                 chart_worksheet.UsedRange.Clear()
                 
-                # 设置分类（X轴标签）
-                for i, category in enumerate(categories, 2):  # 从第2行开始
+                # Set categories (X-axis labels)
+                for i, category in enumerate(categories, 2):  # Start from 2nd row
                     chart_worksheet.Cells(i, 1).Value = category
                 
-                # 设置柱状图数据
-                col_idx = 2  # 从第2列开始
+                # Set column chart data
+                col_idx = 2  # Start from 2nd column
                 for series_name in set(item["name"] for item in column_series):
                     chart_worksheet.Cells(1, col_idx).Value = series_name
                     
-                    # 按分类组织数据
+                    # Organize data by category
                     for i, category in enumerate(categories, 2):
-                        # 查找该分类对应的值
+                        # Find value corresponding to category
                         value = 0
                         for item in column_series:
                             if item["category"] == category and item["name"] == series_name:
@@ -732,13 +732,13 @@ def update_chart_data(chart, chart_data: Dict[str, Any]):
                     
                     col_idx += 1
                 
-                # 设置折线图数据
+                # Set line chart data
                 for series_name in set(item["name"] for item in line_series):
                     chart_worksheet.Cells(1, col_idx).Value = series_name
                     
-                    # 按分类组织数据
+                    # Organize data by category
                     for i, category in enumerate(categories, 2):
-                        # 查找该分类对应的值
+                        # Find value corresponding to category
                         value = 0
                         for item in line_series:
                             if item["category"] == category and item["name"] == series_name:
@@ -748,83 +748,83 @@ def update_chart_data(chart, chart_data: Dict[str, Any]):
                     
                     col_idx += 1
                 
-                print(f"    ✅ 图表数据已更新")
+                print(f"    ✅ Chart data updated")
                 
-                # 设置图表系列类型
+                # Set chart series type
                 try:
                     series_count = chart.SeriesCollection().Count
                     column_series_count = len(set(item["name"] for item in column_series))
                     
-                    # 设置前面的系列为柱状图
+                    # Set first series as column chart
                     for i in range(1, min(column_series_count + 1, series_count + 1)):
                         series = chart.SeriesCollection(i)
                         series.ChartType = 51  # xlColumnClustered
                     
-                    # 设置后面的系列为折线图，并使用次坐标轴
+                    # Set subsequent series as line chart, using secondary axis
                     for i in range(column_series_count + 1, series_count + 1):
                         series = chart.SeriesCollection(i)
                         series.ChartType = 4   # xlLine
-                        series.AxisGroup = 2   # 次坐标轴
+                        series.AxisGroup = 2   # Secondary axis
                     
-                    print(f"    ✅ 图表系列类型已设置")
+                    print(f"    ✅ Chart series type set")
                     
                 except Exception as e:
-                    print(f"    ⚠️  设置图表系列类型时出错: {e}")
+                    print(f"    ⚠️   Error setting chart series type: {e}")
                 
             except Exception as e:
-                print(f"    ⚠️  更新图表数据时出错: {e}")
+                print(f"    ⚠️   Error updating chart data: {e}")
         
         else:
-            # 处理其他类型的图表
-            print(f"    ℹ️  暂不支持图表类型: {chart_type}")
+            # Process other chart types
+            print(f"    ℹ️   Unsupported chart type: {chart_type}")
             
     except Exception as e:
-        print(f"    ❌ 更新图表数据失败: {e}")
+        print(f"    ❌ Error updating chart data: {e}")
         import traceback
-        print(f"    详细错误: {traceback.format_exc()}")
+        print(f"     Detailed error: {traceback.format_exc()}")
 
 def process_image_shape(shape, template_data: Dict[str, Any]):
-    """处理图片形状中的标记"""
-    if shape.Type != 13:  # 不是图片形状
+    """Process markers in image shape"""
+    if shape.Type != 13:  # Not an image shape
         return
     
-    # 获取key映射字典
+    # Get key mapping dictionary
     key_mapping = template_data.get("_key_mapping", {})
     
-    # 检查图片的替代文本中是否有标记
+    # Check if alternative text contains markers
     try:
         if hasattr(shape, 'AlternativeText'):
             image_text = shape.AlternativeText
             image_markers = re.findall(PTMLParser.MARKERS['IMAGE'], image_text)
             if image_markers:
-                print(f"  发现图片标记: {image_markers}")
+                print(f"   Found image markers: {image_markers}")
                 for marker in image_markers:
                     new_image_path = get_case_insensitive_value(marker, template_data.get('IMAGES', {}), key_mapping.get("IMAGES", {}))
                     if new_image_path is not None and os.path.exists(new_image_path):
-                        # 记录原图片位置信息
+                        # Record original image position information
                         left, top = shape.Left, shape.Top
                         width, height = shape.Width, shape.Height
                         slide = shape.Parent
                         
-                        # 删除原图片
+                        # Delete original image
                         shape.Delete()
                         
-                        # 添加新图片
+                        # Add new image
                         slide.Shapes.AddPicture(
                             new_image_path,
                             False, True,
                             left, top, width, height
                         )
-                        print(f"    已替换图片: {new_image_path}")
+                        print(f"     Image replaced: {new_image_path}")
     except Exception as e:
-        print(f"    处理图片标记时出错: {e}")
+        print(f"     Error processing image markers: {e}")
 
 def read_excel_template(excel_path: str) -> Dict[str, Any]:
-    """从Excel模板中读取数据，保持原始格式（包括百分比）"""
+    """Read data from Excel template, keep original format (including percentage)"""
     try:
-        print(f"\n📊 读取Excel模板: {excel_path}")
+        print(f"\n📊 Reading Excel template: {excel_path}")
         
-        # 使用openpyxl直接读取Excel文件
+        # Use openpyxl directly to read Excel file
         wb = load_workbook(excel_path)
         
         template_data = {
@@ -836,7 +836,7 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
             "CONDITIONS": {}
         }
         
-        # 创建key映射字典，用于存储大小写映射关系
+        # Create key mapping dictionary, for storing case mapping relationship
         key_mapping = {
             "TEXT": {},
             "DATES": {},
@@ -846,14 +846,14 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
             "CONDITIONS": {}
         }
         
-        # 处理每个sheet
+        # Process each sheet
         for sheet_name in wb.sheetnames:
-            print(f"\n📑 处理工作表: {sheet_name}")
+            print(f"\n📑 Processing sheet: {sheet_name}")
             
             if sheet_name.lower() == "text":
                 sheet = wb[sheet_name]
                 
-                # 找到key和value的列索引
+                # Find key and value column indices
                 header_row = next(sheet.rows)
                 key_col = None
                 value_col = None
@@ -864,10 +864,10 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                         value_col = idx
                 
                 if key_col is None or value_col is None:
-                    print(f"  ⚠️ 在工作表 {sheet_name} 中未找到必要的列")
+                    print(f"  ⚠️  No necessary column found in sheet {sheet_name}")
                     continue
                 
-                # 从第二行开始处理数据（跳过标题行）
+                # Process data from 2nd row (skip title row)
                 for row in list(sheet.rows)[1:]:
                     key_cell = row[key_col - 1]
                     value_cell = row[value_col - 1]
@@ -877,24 +877,24 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                     
                     key = str(key_cell.value).strip()
                     
-                    # 根据单元格格式处理值
+                    # Process value based on cell format
                     if value_cell.number_format and '%' in value_cell.number_format:
-                        # 如果是百分比格式，直接使用原始字符串值
+                        # If percentage format, directly use original string value
                         try:
-                            # 获取单元格的原始值
+                            # Get original value of cell
                             raw_value = value_cell.value
-                            # 如果是数字类型，转换为整数百分比格式
+                            # If numeric type, convert to integer percentage format
                             if isinstance(raw_value, (int, float)):
-                                # 将数值乘以100并四舍五入为整数
+                                # Multiply value by 100 and round to integer
                                 percentage = round(raw_value * 100)
                                 value = f"{percentage}%"
                             else:
-                                # 如果不是数字，尝试从字符串中提取数字
+                                # If not numeric, try to extract number from string
                                 value = str(raw_value or '').strip()
                                 if value:
-                                    # 如果字符串中包含数字，尝试转换为整数百分比
+                                    # If string contains number, try to convert to integer percentage
                                     try:
-                                        # 移除所有非数字字符（保留负号）
+                                        # Remove all non-numeric characters (keep negative sign)
                                         num_str = ''.join(c for c in value if c.isdigit() or c == '-')
                                         if num_str:
                                             num_value = round(float(num_str))
@@ -902,28 +902,28 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                                         elif not value.endswith('%'):
                                             value = f"{value}%"
                                     except ValueError:
-                                        # 如果转换失败，保持原始值
+                                        # If conversion fails, keep original value
                                         if not value.endswith('%'):
                                             value = f"{value}%"
                         except Exception as e:
-                            print(f"  ⚠️  处理百分比值时出错: {e}")
+                            print(f"  ⚠️   Error processing percentage value: {e}")
                             value = str(value_cell.value or '').strip()
                             if value and not value.endswith('%'):
                                 value = f"{value}%"
                     else:
-                        # 其他情况使用显示值
+                        # Other cases use display value
                         value = str(value_cell.value or '').strip()
                     
-                    # 保存原始key和大写key的映射关系
+                    # Save original key and uppercase key mapping relationship
                     key_mapping["TEXT"][key.upper()] = key
                     template_data["TEXT"][key] = value
-                    print(f"  📝 文本: {key} -> {value}")
+                    print(f"  📝 Text: {key} -> {value}")
             
             elif sheet_name.lower() == "dates":
-                # 处理日期数据
+                # Process date data
                 sheet = wb[sheet_name]
-                for row in list(sheet.rows)[1:]:  # 跳过标题行
-                    if not row[0].value:  # 检查key是否存在
+                for row in list(sheet.rows)[1:]:  # Skip title row
+                    if not row[0].value:  # Check if key exists
                         continue
                     
                     key = str(row[0].value).strip()
@@ -937,15 +937,15 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                         
                         key_mapping["DATES"][key.upper()] = key
                         template_data["DATES"][key] = value
-                        print(f"  📅 日期: {key} -> {value}")
+                        print(f"  📅 Date: {key} -> {value}")
             
             elif sheet_name.lower() == "combo_charts":
-                # 处理组合图表数据（柱状图+折线图）
+                # Process combo chart data (column chart + line chart)
                 sheet = wb[sheet_name]
                 current_chart = None
                 chart_data = {}
                 
-                for row in list(sheet.rows)[1:]:  # 跳过标题行
+                for row in list(sheet.rows)[1:]:  # Skip title row
                     if not row[0].value:
                         continue
                     
@@ -957,21 +957,21 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                     chart_type = str(row[5].value or '').strip()
                     title = str(row[6].value or '').strip()
                     
-                    # 初始化图表数据结构
+                    # Initialize chart data structure
                     if chart_name not in chart_data:
                         chart_data[chart_name] = {
                             "type": chart_type or "combo",
                             "title": title,
                             "categories": [],
-                            "column_series": [],  # 柱状图系列
-                            "line_series": []     # 折线图系列
+                            "column_series": [],  # Column chart series
+                            "line_series": []     # Line chart series
                         }
                     
-                    # 添加分类
+                    # Add category
                     if category and category not in chart_data[chart_name]["categories"]:
                         chart_data[chart_name]["categories"].append(category)
                     
-                    # 添加数据系列
+                    # Add series data
                     if series_type and series_name and value is not None:
                         series_data = {
                             "name": series_name,
@@ -984,50 +984,50 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                         elif series_type.lower() == "line":
                             chart_data[chart_name]["line_series"].append(series_data)
                 
-                # 保存到模板数据中
+                # Save to template data
                 for chart_name, data in chart_data.items():
                     key_mapping["CHARTS"][chart_name.upper()] = chart_name
                     template_data["CHARTS"][chart_name] = data
-                    print(f"  📊 组合图表: {chart_name}")
-                    print(f"    类型: {data['type']}")
-                    print(f"    标题: {data['title']}")
-                    print(f"    分类: {data['categories']}")
-                    print(f"    柱状图系列: {len(data['column_series'])} 个")
-                    print(f"    折线图系列: {len(data['line_series'])} 个")
+                    print(f"  📊 Combo chart: {chart_name}")
+                    print(f"     Type: {data['type']}")
+                    print(f"     Title: {data['title']}")
+                    print(f"     Categories: {data['categories']}")
+                    print(f"     Column series: {len(data['column_series'])}")
+                    print(f"     Line series: {len(data['line_series'])}")
             
             elif sheet_name.lower() == "revenue_data":
-                # 处理收入数据表格
+                # Process revenue data table
                 sheet = wb[sheet_name]
                 revenue_table_data = {
                     "headers": [],
                     "data": []
                 }
                 
-                # 读取表头
+                # Read header
                 header_row = next(sheet.rows)
                 for cell in header_row:
                     if cell.value:
                         revenue_table_data["headers"].append(str(cell.value))
                 
-                # 读取数据行
-                for row in list(sheet.rows)[1:]:  # 跳过标题行
+                # Read data rows
+                for row in list(sheet.rows)[1:]:  # Skip title row
                     row_data = []
                     for cell in row:
                         if cell.value is not None:
                             row_data.append(str(cell.value))
                         else:
                             row_data.append("")
-                    if any(row_data):  # 如果行中有数据
+                    if any(row_data):  # If row has data
                         revenue_table_data["data"].append(row_data)
                 
-                # 保存到模板数据中
+                # Save to template data
                 key_mapping["TABLES"]["REVENUE_DATA"] = "revenue_data"
                 template_data["TABLES"]["revenue_data"] = revenue_table_data
-                print(f"  📊 收入数据表格: {len(revenue_table_data['data'])} 行数据")
-                print(f"    表头: {revenue_table_data['headers']}")
+                print(f"  📊 Revenue data table: {len(revenue_table_data['data'])} rows of data")
+                print(f"     Headers: {revenue_table_data['headers']}")
             
             elif sheet_name.lower() == "tables":
-                # 处理表格数据
+                # Process table data
                 sheet = wb[sheet_name]
                 current_table = None
                 headers = []
@@ -1066,9 +1066,9 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                     }
             
             elif sheet_name.lower() == "images":
-                # 处理图片路径
+                # Process image path
                 sheet = wb[sheet_name]
-                for row in list(sheet.rows)[1:]:  # 跳过标题行
+                for row in list(sheet.rows)[1:]:  # Skip title row
                     if not row[0].value or not row[1].value:
                         continue
                     
@@ -1077,28 +1077,28 @@ def read_excel_template(excel_path: str) -> Dict[str, Any]:
                     
                     key_mapping["IMAGES"][key.upper()] = key
                     template_data["IMAGES"][key] = path
-                    print(f"  🖼️  图片: {key} -> {path}")
+                    print(f"  🖼️  Image: {key} -> {path}")
         
-        # 将key映射添加到template_data中
+        # Add key mapping to template_data
         template_data["_key_mapping"] = key_mapping
-        print("\n✅ Excel模板数据读取完成")
+        print("\n✅ Excel template data read completed")
         return template_data
         
     except Exception as e:
-        print(f"\n❌ 读取Excel模板时出错: {e}")
+        print(f"\n❌ Error reading Excel template: {e}")
         import traceback
-        print(f"详细错误信息: {traceback.format_exc()}")
+        print(f"Detailed error information: {traceback.format_exc()}")
         raise
 
 
 if __name__ == "__main__":
-    # 文件路径
+    # File path
     ppt_file = r"D:\pythonProject\LanchainProject\tests\ppt_chuli\无仓年度PPT-模版.pptx"
-    excel_template = r"D:\pythonProject\LanchainProject\tests\ppt_chuli\template_data.xlsx"  # Excel模板路径
+    excel_template = r"D:\pythonProject\LanchainProject\tests\ppt_chuli\template_data.xlsx"  # Excel template path
     output_path = r"D:\pythonProject\LanchainProject\tests\ppt_chuli\生成的单页报告.pptx"
     
-    # 从Excel读取模板数据
+    # Read Excel template data
     template_data = read_excel_template(excel_template)
     
-    # 处理PPT
+    # Process PPT
     process_ptml_template(ppt_file, template_data, output_path, page_numbers=[1,2,3,4,5,6])
